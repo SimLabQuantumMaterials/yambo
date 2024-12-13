@@ -1,2 +1,3 @@
  RT_driver.o
+ objects.o
 

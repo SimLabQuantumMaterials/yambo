@@ -32,7 +32,7 @@ subroutine K_diago_driver(iq,W,X_static)
  use frequency,      ONLY:w_samp
  use com,            ONLY:isec
  use LIVE_t,         ONLY:live_timing
- use linear_algebra, ONLY:DIAGO
+ use linear_algebra, ONLY:DIAGO,DIAGX,CHASE
  use interfaces,     ONLY:K_diago_response_functions,LINEAR_ALGEBRA_driver,&
  &                        K_diago_left_residuals,K_diago_right_residuals,PL_diago_residual
  use IO_int,         ONLY:io_control
@@ -61,7 +61,7 @@ subroutine K_diago_driver(iq,W,X_static)
  ! Work Space
  !
  integer       :: i_BS_mat,Input_n_eig
- logical       :: K_is_not_hermitian,l_diago,l_slepc,l_target_energy,l_dip_more
+ logical       :: K_is_not_hermitian,l_diago,l_diagx,l_chase,l_slepc,l_target_energy,l_dip_more
  character(1)  :: sec
  character(5)  :: Solver
  !
@@ -102,6 +102,8 @@ subroutine K_diago_driver(iq,W,X_static)
  type(X_t),intent(in)    :: X_static
  !
  l_diago     = index(BSS_mode,'d')/=0
+ l_diagx     = index(BSS_mode,'x')/=0
+ l_chase     = index(BSS_mode,'c')/=0
 #if defined _SLEPC && !defined _NL
  l_slepc     = index(BSS_mode,'s')/=0
 #endif
@@ -109,6 +111,8 @@ subroutine K_diago_driver(iq,W,X_static)
  l_dip_more=l_BS_kerr.or.l_BS_dichroism
  !
  if(l_diago) Solver="Diago"
+ if(l_diagx) Solver="Diagx"
+ if(l_chase) Solver="ChASE"
 #if defined _SLEPC && !defined _NL
  if(l_slepc) Solver="Slepc"
 #endif
@@ -124,6 +128,9 @@ subroutine K_diago_driver(iq,W,X_static)
  if (isec(2)/=0) sec="="
  if (isec(2)==0) sec="+"
  call section(sec,trim(Solver)//' Solver @q'//trim(intc(iq)))
+ !
+ !if(l_diagx) call pars.or.l_diagxer
+
  !  
 #if defined _SLEPC && !defined _NL
  if(l_slepc) call K_slepc_local_init()
@@ -166,7 +173,7 @@ subroutine K_diago_driver(iq,W,X_static)
      !   to a distributed (SLEPC shells / or eventually BLACS) matrix
      ! - The resulting matrix is symmetrized
      !
-     if (l_diago) then
+     if (l_diago.or.l_diagx.or.l_chase) then
        !
        call K_stored_in_a_big_matrix(i_BS_mat,iq,"DIAGO")
        !
@@ -217,11 +224,11 @@ subroutine K_diago_driver(iq,W,X_static)
      !
      ! Diagonalization of the excitonic hamiltonian
      !==============================================
-     if(l_diago) call live_timing('BSK diagonalize',1)
+     if(l_diago.or.l_diagx.or.l_chase) call live_timing('BSK diagonalize',1)
      !
      if (K_is_not_hermitian) then
        !
-       if(l_diago) call LINEAR_ALGEBRA_driver(DIAGO,M=BS_mat,E_cmpl=BS_E,V_left=BS_V_left,V_right=BS_V_right)
+       if(l_diago.or.l_diagx.or.l_chase) call LINEAR_ALGEBRA_driver(DIAGO,M=BS_mat,E_cmpl=BS_E,V_left=BS_V_left,V_right=BS_V_right)
 #if defined _SLEPC && !defined _NL
        if(l_slepc) call MATRIX_slepc(slepc_mat,l_target_energy,BSS_n_eig,BS_V_right,V_left=BS_V_left,E_cmpl=BS_E)
 #endif
@@ -231,8 +238,15 @@ subroutine K_diago_driver(iq,W,X_static)
      else
        !
        if(l_diago) call LINEAR_ALGEBRA_driver(DIAGO,M=BS_mat,E_real=BS_E_real)
+       !
+       if(l_diagx) call LINEAR_ALGEBRA_driver(DIAGX,M=BS_mat,E_real=BS_E_real,neig=BSS_n_eig)
+       !
+       if(l_chase) call LINEAR_ALGEBRA_driver(CHASE,M=BS_mat,E_real=BS_E_real,neig=BSS_n_eig)
+       !
 #if defined _SLEPC && !defined _NL
        if(l_slepc) call MATRIX_slepc(slepc_mat,l_target_energy,BSS_n_eig,BS_mat,E_real=BS_E_real)
+
+        print *, BS_E_real(:)
 #endif
        !
        BS_E=cmplx(BS_E_real,0._SP,kind=SP)
