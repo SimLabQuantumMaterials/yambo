@@ -138,7 +138,10 @@ subroutine LINEAR_ALGEBRA_driver(idriver,lib_in,&
      !
      if(idriver==DIAGX) then 
         call PARALLEL_HERMITIAN_feweigenvalues( M_loc, V_loc, N, E_real, neig)
-        call PARALLEL_HERMITIAN_chase()
+     endif
+     !
+     if(idriver==CHASE) then
+        call PARALLEL_HERMITIAN_chase(M_loc, V_loc, N, E_real, neig)
      endif
      !
      call MATRIX_transfer( M_in = V_loc , M=M )
