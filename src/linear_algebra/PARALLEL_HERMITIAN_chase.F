@@ -13,7 +13,7 @@ subroutine PARALLEL_HERMITIAN_chase(Mat, V, N, E, neig)
  use parallel_int,   ONLY:PP_redux_wait
  use SLK_m,          ONLY:SLK_POOL,SLK_ORTHO
  use linear_algebra, ONLY:LINEAR_ALGEBRA_error,LINEAR_ALGEBRA_WS_reset,LALGEBRA_WS
- use parallel_m,     ONLY:MPI_COMM_WORLD
+ use parallel_m,     ONLY:PAR_COM_WORLD
  use matrix,         ONLY:PAR_matrix
  use timing_m,       ONLY:timing
 #include<y_memory.h>
@@ -30,16 +30,15 @@ subroutine PARALLEL_HERMITIAN_chase(Mat, V, N, E, neig)
  complex(SP), allocatable :: Vtemp(:,:)
  real(SP), allocatable :: Etemp(:)
 
- call timing('SERIAL_HERMITIAN_chase',OPR='start')
+ integer :: myrank_intra, myrank_inter, intra_size, inter_size,&
+&           myrank_slk_ortho_comm, slk_ortho_comm_size,ierr
+
+ call timing('PARALLEL_HERMITIAN_chase',OPR='start')
 !
  nev = min(neig,N)
  nex = max(0,min(10,N-nev))
 
- allocate(Vtemp(m,nev+nex))
- allocate(Etemp(nev+nex))
-
- Vtemp = 0.0
- Etemp = 0.0
+ print *,"Allocating : nev,nex = ",nev, ",", nex
 
  deg = 20
  tol = 1e-10
@@ -54,15 +53,43 @@ subroutine PARALLEL_HERMITIAN_chase(Mat, V, N, E, neig)
  mycol = SLK_ORTHO%coordinate(2)
  nb    = Mat%BLCnrows
  m     = Mat%nrows
+ 
+ allocate(Vtemp(m,nev+nex))
+ allocate(Etemp(nev+nex))
 
+ Vtemp = 0.0
+ Etemp = 0.0
+
+ !call mpi_comm_rank(Mat%INTRA_comm,myrank_intra ,ierr)
+ !call mpi_comm_size(Mat%INTRA_comm,intra_size   ,ierr)
+ 
+ call mpi_comm_rank(SLK_ORTHO%COMM,myrank_slk_ortho_comm,ierr)
+ call mpi_comm_size(SLK_ORTHO%COMM,slk_ortho_comm_size  ,ierr)
+
+ print *, "Ok." 
+ !call mpi_comm_rank(Mat%INTER_comm,myrank_inter ,ierr)
+ !call mpi_comm_size(Mat%INTER_comm,inter_size   ,ierr)
+
+ print *, "-------- Grid Info : ---------"
+ print *, "My rank is ", myrank_slk_ortho_comm, " / ",&
+&                               slk_ortho_comm_size," in SLK_ORTHGO_COMM " 
+ !print *, "My rank is ", myrank_intra, " / ", intra_size," in INTRA_COMM " 
+ !print *, "My rank is ", myrank_inter, " / ", inter_size," in INTER_COMM " 
+ print *, "myrow = ",myrow," mycol = ",mycol,"rows = ",Mat%rows," cols = ",Mat%cols
+
+ print *, "Number of CPU in INTRA_comm : ", Mat%INTRA_comm%n_CPU
+ print *, "Number of CPU in INTER_comm : ", Mat%INTER_comm%n_CPU
+ print *, "Mat% I = ",Mat%I, " nb = ", nb, " m = ", m
+ print *, "Rows = ", Mat%rows
+  
 #if defined _DOUBLE
  print *, "parallel double go!"
  call pzchase_init_blockcyclic(N, nev, nex, nb, nb, Mat%blc(:,:,Mat%I), m, Vtemp, Etemp,&
-&                              nprow, npcol, 0, 0, grid_major, MPI_COMM_WORLD, init)
+&                              nprow, npcol, grid_major, 0, 0, SLK_ORTHO%COMM, init)
 #else
  print *, "parallel simple go!"
- call czchase_init_blockcyclic(N, nev, nex, nb, nb, atM%blc(:,:,Mat%I), m, Vtemp, Etemp,&
-&                              nprow, npcol, 0, 0, grid_major, MPI_COMM_WORLD, init)
+ call pcchase_init_blockcyclic(N, nev, nex, nb, nb, Mat%blc(:,:,Mat%I), m, Vtemp, Etemp,&
+&                              nprow, npcol, grid_major, 0, 0, SLK_ORTHO%COMM, init)
 #endif
 
  print *, "Initialized"
@@ -105,4 +132,4 @@ print *, "Solved"
  deallocate(Etemp)
  call timing('PARALLEL_HERMITIAN_chase',OPR='stop')
  !
-end subroutine
+end subroutine PARALLEL_HERMITIAN_chase

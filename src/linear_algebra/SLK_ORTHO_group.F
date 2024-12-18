@@ -53,6 +53,9 @@ subroutine SLK_ORTHO_group( ORTHO, POOL, nproc_try_in, comm_all )
  !  in the ortho group for parallel linear algebra
  !
  ORTHO%n_CPU = ORTHO%grid(1) * ORTHO%grid(2)
+
+ print *, "ORTHO%n_CPU = ", ORTHO%n_CPU
+
  !
  IF( nproc_all >= 4*ORTHO%n_CPU ) THEN
    !

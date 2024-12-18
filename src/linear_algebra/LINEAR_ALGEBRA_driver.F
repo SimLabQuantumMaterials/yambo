@@ -94,7 +94,8 @@ subroutine LINEAR_ALGEBRA_driver(idriver,lib_in,&
  if (present(lib_in)) then
    lib_in_use=lib_in
  endif
- if (idriver==SVD_INV.or.((idriver==DIAGO.or.idriver==DIAGX).and.present(E_cmpl))) lib_in_use=USE_LK 
+ if(idriver==SVD_INV.or.((idriver==DIAGO.or.idriver==DIAGX&
+&                        .or.idriver==CHASE).and.present(E_cmpl))) lib_in_use=USE_LK 
  if (.not.linear_algebra_is_parallel) lib_in_use=USE_LK
  !
  ! whether to use CUDA lib
@@ -104,18 +105,21 @@ subroutine LINEAR_ALGEBRA_driver(idriver,lib_in,&
  if (USE_GPU) lib_in_use=USE_LK
  !
 #if defined _SCALAPACK
- if ((idriver==DIAGO.or.idriver==DIAGX).and.present(E_cmpl).and.ncpu>1) then
+ if ((idriver==DIAGO.or.idriver==DIAGX.or.idriver==CHASE).and.present(E_cmpl).and.ncpu>1) then
    !
    call warning('Parallel non-herm diag not yet implemented. Switching to LK')
    lib_in_use=USE_LK
    !
  endif
 
+ print *, "idriver is ", idriver, " is it ChasE? ", idriver == CHASE, "Chase is ", CHASE
+
  !
  ! =============== PARALLEL SECTION ==========================================================
  !
- if (lib_in_use==USE_SLK.and..not.USE_GPU) then 
+ if ((lib_in_use==USE_SLK.and..not.USE_GPU).or.idriver==CHASE) then 
    !
+   print *, "Entering PARALLEL SECTION : "
    if (.not.present(M_slk)) then
      !
      call MATRIX_init( "SLK", M_loc, N, 1 )
@@ -129,9 +133,14 @@ subroutine LINEAR_ALGEBRA_driver(idriver,lib_in,&
      !
    endif
    !
-   if (idriver==DIAGO.or.idriver==DIAGX) then
+   if (idriver==DIAGO.or.idriver==DIAGX.or.idriver==CHASE) then
      !
-     call MATRIX_init("SLK",  V_loc, N, 1 )
+     print *, "Entering Parallel options :"
+     if(idriver==CHASE) then
+        call MATRIX_init("SLK",  V_loc, N, 1 )
+     else 
+        call MATRIX_init("SLK",  V_loc, N, 1 )
+     endif
      YAMBO_ALLOC(V_loc%blc,(V_loc%BLCrows(1):V_loc%BLCrows(2),V_loc%BLCcols(1):V_loc%BLCcols(2),V_loc%Nb))
      !
      if(idriver==DIAGO) call PARALLEL_HERMITIAN_diagonalization( M_loc, V_loc, N, E_real )
@@ -141,7 +150,10 @@ subroutine LINEAR_ALGEBRA_driver(idriver,lib_in,&
      endif
      !
      if(idriver==CHASE) then
+        print *, "Entering ChASE :"
         call PARALLEL_HERMITIAN_chase(M_loc, V_loc, N, E_real, neig)
+        print *, "CHASE ended : eigenvlues are :"
+        print *, E_real(:)
      endif
      !
      call MATRIX_transfer( M_in = V_loc , M=M )

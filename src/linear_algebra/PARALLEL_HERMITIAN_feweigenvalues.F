@@ -118,9 +118,3 @@ subroutine PARALLEL_HERMITIAN_feweigenvalues(M, V, N, E, neig)
  call timing('PARALLEL_HERMITIAN_feweigenvalues',OPR='stop')
  !
 end subroutine PARALLEL_HERMITIAN_feweigenvalues
-
-subroutine PARALLEL_HERMITIAN_chase()
-
- use chase_diag
-
-end subroutine PARALLEL_HERMITIAN_chase

@@ -33,6 +33,7 @@ subroutine SLK_matrix_init(M_slk, N, N_blocks)
  !
  call BLACS_GRIDINFO( SLK_ORTHO%ortho_cntx, SLK_ORTHO%grid(1), SLK_ORTHO%grid(2), SLK_ORTHO%coordinate(1), SLK_ORTHO%coordinate(2) )
  !
+ print *, "GRID INFI ARE = ", SLK_ORTHO%grid(1), "x", SLK_ORTHO%grid(2)
  nprow=SLK_ORTHO%grid(1)
  npcol=SLK_ORTHO%grid(2)
  myrow=SLK_ORTHO%coordinate(1)
