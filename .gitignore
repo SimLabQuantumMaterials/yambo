@@ -1,3 +1,6 @@
+jobs/hBN/*
+jobs/Silicon/*
+
 # DEPS #
 ########
 modulesdep.list

@@ -11,7 +11,7 @@ external_chase="yes"
 AC_SUBST(compile_chase)
 AC_SUBST(internal_chase)
 AC_SUBST(external_chase)
-echo "We are in ChASE CONFIG!!!!"
+
 if test "$enable_chase" = "yes"
 then
 	if test x"$with_chase_libdir" != "x"
@@ -45,7 +45,8 @@ then
 
         AC_SUBST([CHASE_INCS],["${CHASE_INCS} -I${ChASEROOT}/include"])
         AC_SUBST([CHASE_LIBS],["${CHASE_LIBS} -L${ChASEROOT}/lib64 -lchase_c -lchase_f -lchase_cuda "])
-        AC_SUBST([CHASE_LIBS],["${CHASE_LIBS} -lscalapack -lopenblas -lcudart -lcublas -lcusolver -lcudart -lcurand -lnccl -lstdc++ "])
+        AC_SUBST([CHASE_LIBS],["${CHASE_LIBS}  -lopenblas -lgfortran -lscalapack -lstdc++ "])
+        AC_SUBST([CHASE_LIBS],["${CHASE_LIBS} -lcudart -lcublas -lcusolver -lcudart -lcurand -lnccl "])
 
         #LIBS="${LIBS} ${CHASE_LIBS} "
         #INCS="${INCS} ${CHASE_INCS} "

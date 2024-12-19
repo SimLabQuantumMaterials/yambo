@@ -8,6 +8,8 @@
 ! #CHASE STAMP      
 
 subroutine PARALLEL_HERMITIAN_chase(Mat, V, N, E, neig)
+
+ use chase_diag
  !
  use pars,           ONLY:SP
  use parallel_int,   ONLY:PP_redux_wait
@@ -18,11 +20,12 @@ subroutine PARALLEL_HERMITIAN_chase(Mat, V, N, E, neig)
  use timing_m,       ONLY:timing
 #include<y_memory.h>
  !
- integer           :: N,neig,i,j,k,nr,nb,nprow,npcol,m,myrow,mycol
+ integer           :: N,neig,i,j,k,nr,nb,nprow,npcol,m,myrow,mycol,nl
  type(PAR_matrix)  :: Mat,V
  real(SP)          :: E(neig)
 
- integer :: nev, nex, init, deg, flag
+ integer  :: nev, nex, init, deg, flag
+ integer  :: comm
  real(SP) :: tol
  character :: mode, opt, qr, grid_major
  !
@@ -38,14 +41,12 @@ subroutine PARALLEL_HERMITIAN_chase(Mat, V, N, E, neig)
  nev = min(neig,N)
  nex = max(0,min(10,N-nev))
 
- print *,"Allocating : nev,nex = ",nev, ",", nex
-
  deg = 20
  tol = 1e-10
  mode = 'R'
  opt = 'S'
  qr = 'C'
- grid_major = 'R'
+ grid_major = 'R' !----- Check grid major /!\.
 
  nprow = SLK_ORTHO%grid(1)
  npcol = SLK_ORTHO%grid(2)
@@ -53,46 +54,37 @@ subroutine PARALLEL_HERMITIAN_chase(Mat, V, N, E, neig)
  mycol = SLK_ORTHO%coordinate(2)
  nb    = Mat%BLCnrows
  m     = Mat%nrows
- 
+ nl    = Mat%ncols
+ comm  = SLK_ORTHO%COMM
+
  allocate(Vtemp(m,nev+nex))
  allocate(Etemp(nev+nex))
 
  Vtemp = 0.0
  Etemp = 0.0
-
- !call mpi_comm_rank(Mat%INTRA_comm,myrank_intra ,ierr)
- !call mpi_comm_size(Mat%INTRA_comm,intra_size   ,ierr)
  
- call mpi_comm_rank(SLK_ORTHO%COMM,myrank_slk_ortho_comm,ierr)
- call mpi_comm_size(SLK_ORTHO%COMM,slk_ortho_comm_size  ,ierr)
+ call mpi_comm_rank(comm,myrank_slk_ortho_comm,ierr)
+ call mpi_comm_size(comm,slk_ortho_comm_size  ,ierr)
 
- print *, "Ok." 
- !call mpi_comm_rank(Mat%INTER_comm,myrank_inter ,ierr)
- !call mpi_comm_size(Mat%INTER_comm,inter_size   ,ierr)
+! print *, "-------- Grid Info : ---------"
+! print *, "My rank is ", myrank_slk_ortho_comm, " / ",&
+!&                               slk_ortho_comm_size," in SLK_ORTHO_COMM " 
+! print *, "Mat% I = ",Mat%I, " nb = ", nb, " m = ", m
+! print *, "Rows = ", Mat%rows
 
- print *, "-------- Grid Info : ---------"
- print *, "My rank is ", myrank_slk_ortho_comm, " / ",&
-&                               slk_ortho_comm_size," in SLK_ORTHGO_COMM " 
- !print *, "My rank is ", myrank_intra, " / ", intra_size," in INTRA_COMM " 
- !print *, "My rank is ", myrank_inter, " / ", inter_size," in INTER_COMM " 
- print *, "myrow = ",myrow," mycol = ",mycol,"rows = ",Mat%rows," cols = ",Mat%cols
 
- print *, "Number of CPU in INTRA_comm : ", Mat%INTRA_comm%n_CPU
- print *, "Number of CPU in INTER_comm : ", Mat%INTER_comm%n_CPU
- print *, "Mat% I = ",Mat%I, " nb = ", nb, " m = ", m
- print *, "Rows = ", Mat%rows
-  
 #if defined _DOUBLE
- print *, "parallel double go!"
+! call pzchase_init(N,nev,nex,m,nl,Mat%blc(:,:,Mat%I),m,Vtemp,Etemp,&
+!&                  nprow,npcol,grid_major,comm,init)
+
+ call timing('ChASE_INIT',OPR='start')
  call pzchase_init_blockcyclic(N, nev, nex, nb, nb, Mat%blc(:,:,Mat%I), m, Vtemp, Etemp,&
 &                              nprow, npcol, grid_major, 0, 0, SLK_ORTHO%COMM, init)
 #else
- print *, "parallel simple go!"
  call pcchase_init_blockcyclic(N, nev, nex, nb, nb, Mat%blc(:,:,Mat%I), m, Vtemp, Etemp,&
 &                              nprow, npcol, grid_major, 0, 0, SLK_ORTHO%COMM, init)
 #endif
-
- print *, "Initialized"
+ call timing('ChASE_INIT',OPR='stop')
 
 #if defined _DOUBLE
  call pzchase(deg,tol,mode,opt,qr)
@@ -100,8 +92,6 @@ subroutine PARALLEL_HERMITIAN_chase(Mat, V, N, E, neig)
  call pcchase(deg,tol,mode,opt,qr)
 #endif
  
-print *, "Solved"
-
 #if defined _DOUBLE
  call pzchase_finalize(flag)
 #else
@@ -114,6 +104,7 @@ print *, "Solved"
         E(i) = Etemp(i)
  end do
 
+ call timing('ChASE_Reorganize',OPR='start')
  j = 0
  k = 1
  do i = 1, nev, nb
@@ -127,8 +118,11 @@ print *, "Solved"
         end if
         j = MOD(j + 1, nprow)
  end do
+ 
+call timing('ChASE_Reorganize',OPR='stop')
 
- print *, E(:)
+ call PP_redux_wait(E,COMM=SLK_POOL%INTRA_comm)
+
  deallocate(Etemp)
  call timing('PARALLEL_HERMITIAN_chase',OPR='stop')
  !

@@ -15544,7 +15544,7 @@ external_chase="yes"
 
 
 
-echo "We are in ChASE CONFIG!!!!"
+
 if test "$enable_chase" = "yes"
 then
 	if test x"$with_chase_libdir" != "x"
@@ -15660,7 +15660,9 @@ fi
 
         CHASE_LIBS="${CHASE_LIBS} -L${ChASEROOT}/lib64 -lchase_c -lchase_f -lchase_cuda "
 
-        CHASE_LIBS="${CHASE_LIBS} -lscalapack -lopenblas -lcudart -lcublas -lcusolver -lcudart -lcurand -lnccl -lstdc++ "
+        CHASE_LIBS="${CHASE_LIBS}  -lopenblas -lgfortran -lscalapack -lstdc++ "
+
+        CHASE_LIBS="${CHASE_LIBS} -lcudart -lcublas -lcusolver -lcudart -lcurand -lnccl "
 
 
         #LIBS="${LIBS} ${CHASE_LIBS} "
