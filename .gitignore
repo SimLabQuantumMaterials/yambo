@@ -43,6 +43,7 @@ lib/archive/git.list
 *.swp*
 *dSYM
 *bk
+*.dep
 
 # source #
 ##########
