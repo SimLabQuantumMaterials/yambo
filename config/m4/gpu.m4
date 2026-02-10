@@ -101,7 +101,7 @@ AC_ARG_WITH([cuda-cc],
 
 AC_ARG_WITH([cuda-runtime],
    [AS_HELP_STRING([--with-cuda-runtime=VAL],[CUDA runtime (Pascal: 8+, Volta: 9+) @<:@default=10.1@:>@])],
-   [],[with_cuda_runtime=10.1])
+   [],[with_cuda_runtime=none])
 # 
 AC_ARG_WITH([cuda-int-libs],
    [AS_HELP_STRING([--with-cuda-int-libs=VAL],[CUDA internal libraries () @<:@default=cuda,cufft,cublas,cusolver,cudart@:>@])],
@@ -197,7 +197,10 @@ if test x"$enable_cuda_fortran" != "xno" ; then
    #
    case "${FCVERSION}" in
     *nvfortran*)
-      GPU_FLAGS="-cuda -gpu=cc${with_cuda_cc},cuda${with_cuda_runtime}"
+      GPU_FLAGS="-cuda -gpu=cc${with_cuda_cc}"
+      if test "x$with_cuda_runtime" != "xnone" ; then
+          GPU_FLAGS+=" -gpu=cuda${with_cuda_runtime}";
+      fi
       if test x"$use_int_cuda_libs" = "xyes" ; then
         GPU_FLAGS+=" -cudalib=${with_cuda_int_libs}";
       fi
